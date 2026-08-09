@@ -15,7 +15,7 @@ To install `line-ending-selector` search for _line-ending-selector_ in the Insta
 
 ## Commands
 
-Commands available in `atom-text-editor`:
+Commands available in `lumine-text-editor`:
 
 - `line-ending-selector:show`: open the line ending picker,
 - `line-ending-selector:convert-to-LF`: convert the file to `LF` line endings,
