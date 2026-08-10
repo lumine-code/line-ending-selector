@@ -5,40 +5,29 @@ const path = require("path");
 describe("line ending selector", () => {
   let lineEndingTile;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jasmine.useRealClock();
 
-    waitsForPromise(() => {
-      return lumine.packages.activatePackage("status-bar");
-    });
+    await lumine.packages.activatePackage("status-bar");
 
-    waitsForPromise(() => {
-      return lumine.packages.activatePackage("line-ending-selector");
-    });
+    await lumine.packages.activatePackage("line-ending-selector");
 
-    waits(1);
+    await timeoutPromise(1);
 
-    runs(() => {
-      const statusBar = lumine.workspace.getFooterPanels()[0].getItem();
-      lineEndingTile = statusBar.getRightTiles()[0].getItem();
-      expect(lineEndingTile.element.className).toMatch(/line-ending-tile/);
-      expect(lineEndingTile.element.textContent).toBe("");
-    });
+    const statusBar = lumine.workspace.getFooterPanels()[0].getItem();
+    lineEndingTile = statusBar.getRightTiles()[0].getItem();
+    expect(lineEndingTile.element.className).toMatch(/line-ending-tile/);
+    expect(lineEndingTile.element.textContent).toBe("");
   });
 
   describe("Commands", () => {
     let editor, editorElement;
 
-    beforeEach(() => {
-      waitsForPromise(() => {
-        return lumine.workspace
-          .open(path.join(__dirname, "fixtures", "mixed-endings.md"))
-          .then((e) => {
-            editor = e;
-            editorElement = lumine.views.getView(editor);
-            jasmine.attachToDOM(editorElement);
-          });
-      });
+    beforeEach(async () => {
+      const e = await lumine.workspace.open(path.join(__dirname, "fixtures", "mixed-endings.md"));
+      editor = e;
+      editorElement = lumine.views.getView(editor);
+      jasmine.attachToDOM(editorElement);
     });
 
     describe('When "line-ending-selector:convert-to-LF" is run', () => {
@@ -60,9 +49,9 @@ describe("line ending selector", () => {
 
   describe("Status bar tile", () => {
     describe("when an empty file is opened", () => {
-      it("uses the default line endings for the platform", () => {
-        waitsFor((done) => {
-          spyOn(helpers, "getProcessPlatform").andReturn("win32");
+      it("uses the default line endings for the platform", async () => {
+        await new Promise((done) => {
+          spyOn(helpers, "getProcessPlatform").and.returnValue("win32");
 
           lumine.workspace.open("").then((editor) => {
             const subscription = lineEndingTile.onDidChange(() => {
@@ -78,8 +67,8 @@ describe("line ending selector", () => {
           });
         });
 
-        waitsFor((done) => {
-          helpers.getProcessPlatform.andReturn("darwin");
+        await new Promise((done) => {
+          helpers.getProcessPlatform.and.returnValue("darwin");
 
           lumine.workspace.open("").then((editor) => {
             const subscription = lineEndingTile.onDidChange(() => {
@@ -101,9 +90,9 @@ describe("line ending selector", () => {
           lumine.config.set("line-ending-selector.defaultLineEnding", "LF");
         });
 
-        it("uses LF line endings, regardless of the platform", () => {
-          waitsFor((done) => {
-            spyOn(helpers, "getProcessPlatform").andReturn("win32");
+        it("uses LF line endings, regardless of the platform", async () => {
+          await new Promise((done) => {
+            spyOn(helpers, "getProcessPlatform").and.returnValue("win32");
 
             lumine.workspace.open("").then((editor) => {
               lineEndingTile.onDidChange(() => {
@@ -121,8 +110,8 @@ describe("line ending selector", () => {
           lumine.config.set("line-ending-selector.defaultLineEnding", "CRLF");
         });
 
-        it("uses CRLF line endings, regardless of the platform", () => {
-          waitsFor((done) => {
+        it("uses CRLF line endings, regardless of the platform", async () => {
+          await new Promise((done) => {
             lumine.workspace.open("").then((editor) => {
               lineEndingTile.onDidChange(() => {
                 expect(lineEndingTile.element.textContent).toBe("CRLF");
@@ -136,8 +125,8 @@ describe("line ending selector", () => {
     });
 
     describe("when a file is opened that contains only CRLF line endings", () => {
-      it('displays "CRLF" as the line ending', () => {
-        waitsFor((done) => {
+      it('displays "CRLF" as the line ending', async () => {
+        await new Promise((done) => {
           lumine.workspace.open(path.join(__dirname, "fixtures", "windows-endings.md")).then(() => {
             lineEndingTile.onDidChange(() => {
               expect(lineEndingTile.element.textContent).toBe("CRLF");
@@ -149,8 +138,8 @@ describe("line ending selector", () => {
     });
 
     describe("when a file is opened that contains only LF line endings", () => {
-      it('displays "LF" as the line ending', () => {
-        waitsFor((done) => {
+      it('displays "LF" as the line ending', async () => {
+        await new Promise((done) => {
           lumine.workspace
             .open(path.join(__dirname, "fixtures", "unix-endings.md"))
             .then((editor) => {
@@ -165,8 +154,8 @@ describe("line ending selector", () => {
     });
 
     describe("when a file is opened that contains mixed line endings", () => {
-      it('displays "Mixed" as the line ending', () => {
-        waitsFor((done) => {
+      it('displays "Mixed" as the line ending', async () => {
+        await new Promise((done) => {
           lumine.workspace.open(path.join(__dirname, "fixtures", "mixed-endings.md")).then(() => {
             lineEndingTile.onDidChange(() => {
               expect(lineEndingTile.element.textContent).toBe("Mixed");
@@ -180,10 +169,10 @@ describe("line ending selector", () => {
     describe("clicking the tile", () => {
       let lineEndingModal, lineEndingSelector;
 
-      beforeEach(() => {
+      beforeEach(async () => {
         jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
 
-        waitsFor((done) =>
+        await new Promise((done) =>
           lumine.workspace
             .open(path.join(__dirname, "fixtures", "unix-endings.md"))
             .then(() => lineEndingTile.onDidChange(done)),
@@ -227,7 +216,7 @@ describe("line ending selector", () => {
       });
 
       describe("when selecting a different line ending for the file", () => {
-        it("changes the line endings in the buffer", () => {
+        it("changes the line endings in the buffer", async () => {
           lineEndingTile.element.dispatchEvent(new MouseEvent("click", {}));
           lineEndingModal = lumine.workspace.getModalPanels()[0];
           lineEndingSelector = lineEndingModal.getItem();
@@ -246,7 +235,7 @@ describe("line ending selector", () => {
           lineEndingSelector.confirmSelection();
           expect(lineEndingModal.isVisible()).toBe(false);
 
-          waitsForPromise(() => lineEndingChangedPromise);
+          await lineEndingChangedPromise;
         });
       });
 
@@ -263,23 +252,18 @@ describe("line ending selector", () => {
     });
 
     describe("closing the last text editor", () => {
-      it("displays no line ending in the status bar", () => {
-        waitsForPromise(() => {
-          return lumine.workspace
-            .open(path.join(__dirname, "fixtures", "unix-endings.md"))
-            .then(() => {
-              lumine.workspace.getActivePane().destroy();
-              expect(lineEndingTile.element.textContent).toBe("");
-            });
-        });
+      it("displays no line ending in the status bar", async () => {
+        await lumine.workspace.open(path.join(__dirname, "fixtures", "unix-endings.md"));
+        lumine.workspace.getActivePane().destroy();
+        expect(lineEndingTile.element.textContent).toBe("");
       });
     });
 
     describe("when the buffer's line endings change", () => {
       let editor;
 
-      beforeEach(() => {
-        waitsFor((done) => {
+      beforeEach(async () => {
+        await new Promise((done) => {
           lumine.workspace.open(path.join(__dirname, "fixtures", "unix-endings.md")).then((e) => {
             editor = e;
             lineEndingTile.onDidChange(done);
@@ -287,7 +271,7 @@ describe("line ending selector", () => {
         });
       });
 
-      it("updates the line ending text in the tile", () => {
+      it("updates the line ending text in the tile", async () => {
         let tileText = lineEndingTile.element.textContent;
         let tileUpdateCount = 0;
         Object.defineProperty(lineEndingTile.element, "textContent", {
@@ -304,7 +288,7 @@ describe("line ending selector", () => {
         expect(lineEndingTile.element.textContent).toBe("LF");
         expect(getTooltipText(lineEndingTile.element)).toBe("File uses LF (Unix) line endings");
 
-        waitsFor((done) => {
+        await new Promise((done) => {
           editor.setTextInBufferRange(
             [
               [0, 0],
@@ -325,50 +309,40 @@ describe("line ending selector", () => {
           lineEndingTile.onDidChange(done);
         });
 
-        runs(() => {
-          expect(tileUpdateCount).toBe(1);
-          expect(lineEndingTile.element.textContent).toBe("Mixed");
-          expect(getTooltipText(lineEndingTile.element)).toBe("File uses mixed line endings");
-        });
+        expect(tileUpdateCount).toBe(1);
+        expect(lineEndingTile.element.textContent).toBe("Mixed");
+        expect(getTooltipText(lineEndingTile.element)).toBe("File uses mixed line endings");
 
-        waitsFor((done) => {
+        await new Promise((done) => {
           lumine.commands.dispatch(editor.getElement(), "line-ending-selector:convert-to-CRLF");
           lineEndingTile.onDidChange(done);
         });
 
-        runs(() => {
-          expect(tileUpdateCount).toBe(2);
-          expect(lineEndingTile.element.textContent).toBe("CRLF");
-          expect(getTooltipText(lineEndingTile.element)).toBe(
-            "File uses CRLF (Windows) line endings",
-          );
-        });
+        expect(tileUpdateCount).toBe(2);
+        expect(lineEndingTile.element.textContent).toBe("CRLF");
+        expect(getTooltipText(lineEndingTile.element)).toBe(
+          "File uses CRLF (Windows) line endings",
+        );
 
-        waitsFor((done) => {
+        await new Promise((done) => {
           lumine.commands.dispatch(editor.getElement(), "line-ending-selector:convert-to-LF");
           lineEndingTile.onDidChange(done);
         });
 
-        runs(() => {
-          expect(tileUpdateCount).toBe(3);
-          expect(lineEndingTile.element.textContent).toBe("LF");
-        });
+        expect(tileUpdateCount).toBe(3);
+        expect(lineEndingTile.element.textContent).toBe("LF");
 
-        runs(() => {
-          editor.setTextInBufferRange(
-            [
-              [0, 0],
-              [0, 0],
-            ],
-            "\n",
-          );
-        });
+        editor.setTextInBufferRange(
+          [
+            [0, 0],
+            [0, 0],
+          ],
+          "\n",
+        );
 
-        waits(100);
+        await timeoutPromise(100);
 
-        runs(() => {
-          expect(tileUpdateCount).toBe(3);
-        });
+        expect(tileUpdateCount).toBe(3);
       });
     });
   });
