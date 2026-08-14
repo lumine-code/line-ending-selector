@@ -11,7 +11,7 @@ Show and change the line ending used by the current editor.
 
 ## Installation
 
-To install `line-ending-selector` search for _line-ending-selector_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/line-ending-selector`.
+To install `line-ending-selector` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/line-ending-selector`.
 
 ## Commands
 
@@ -23,7 +23,7 @@ Commands available in `lumine-text-editor`:
 
 ## Services
 
-- **status-bar** (`^1.0.0`): consumed to show the current line ending in the status bar.
+- `status-bar`: consumed to show the current line ending in the status bar.
 
 ## Contributing
 
