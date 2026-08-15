@@ -6,6 +6,7 @@ Show and change the line ending used by the current editor.
 
 - **Line ending indicator**: displays the current line ending (`CRLF`, `LF`, or `Mixed`) in the status bar.
 - **Quick switching**: pick a new line ending from a modal in the status bar.
+- **Marks what the file is**: ticks the current line ending, and lists `Mixed` as a read-only row when the file uses both.
 - **Conversion commands**: convert the active file to `LF` or `CRLF`.
 - **Default line ending**: choose the line ending applied to newly created files.
 

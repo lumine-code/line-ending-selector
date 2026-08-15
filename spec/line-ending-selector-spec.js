@@ -45,6 +45,60 @@ describe("line ending selector", () => {
         expect(editor.getText()).toBe("Hello\r\nGoodbye\r\nMixed\r\n");
       });
     });
+
+    describe('When "line-ending-selector:show" is run', () => {
+      async function showSelector() {
+        lumine.commands.dispatch(
+          lumine.views.getView(lumine.workspace),
+          "line-ending-selector:show",
+        );
+        await conditionPromise(() => lumine.workspace.getModalPanels().length > 0);
+        const view = lumine.workspace.getModalPanels()[0].getItem();
+        await conditionPromise(() => view.element.querySelector("li"));
+        return view;
+      }
+
+      function rowNames(view) {
+        return Array.from(view.element.querySelectorAll("li"), (li) => li.dataset.lineEnding);
+      }
+
+      it("offers Mixed, ticked and last, when the file uses both", async () => {
+        const view = await showSelector();
+
+        expect(rowNames(view)).toEqual(["LF", "CRLF", "Mixed"]);
+        expect(view.element.querySelector("li.active").dataset.lineEnding).toBe("Mixed");
+      });
+
+      it("refuses to apply Mixed and says why, without closing", async () => {
+        const view = await showSelector();
+        const before = editor.getText();
+
+        view.selectIndex(rowNames(view).indexOf("Mixed"));
+        view.confirmSelection();
+
+        expect(editor.getText()).toBe(before);
+        expect(view.isVisible()).toBe(true);
+        expect(view.props.status.message).toContain("Pick LF or CRLF");
+      });
+
+      it("offers only the two real endings when the file agrees with itself, ticking the one it uses", async () => {
+        await lumine.workspace.open(path.join(__dirname, "fixtures", "unix-endings.md"));
+        const view = await showSelector();
+
+        expect(rowNames(view)).toEqual(["LF", "CRLF"]);
+        expect(view.element.querySelector("li.active").dataset.lineEnding).toBe("LF");
+      });
+
+      it("applies a real ending and closes", async () => {
+        const view = await showSelector();
+
+        view.selectIndex(rowNames(view).indexOf("CRLF"));
+        view.confirmSelection();
+
+        expect(editor.getText()).toBe("Hello\r\nGoodbye\r\nMixed\r\n");
+        expect(view.isVisible()).toBe(false);
+      });
+    });
   });
 
   describe("Status bar tile", () => {
@@ -169,6 +223,17 @@ describe("line ending selector", () => {
     describe("clicking the tile", () => {
       let lineEndingModal, lineEndingSelector;
 
+      // The picker reads the buffer's line endings before it opens — that is
+      // what decides the tick and whether there is a "Mixed" row — so the
+      // panel arrives a turn after the click rather than during it.
+      async function clickTile() {
+        lineEndingTile.element.dispatchEvent(new MouseEvent("click", {}));
+        await conditionPromise(() => lumine.workspace.getModalPanels().length > 0);
+        lineEndingModal = lumine.workspace.getModalPanels()[0];
+        lineEndingSelector = lineEndingModal.getItem();
+        await conditionPromise(() => lineEndingSelector.element.querySelector("li"));
+      }
+
       beforeEach(async () => {
         jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
 
@@ -180,14 +245,12 @@ describe("line ending selector", () => {
       });
 
       describe("when the text editor has focus", () => {
-        it("opens the line ending selector modal for the text editor", () => {
+        it("opens the line ending selector modal for the text editor", async () => {
           lumine.workspace.getCenter().activate();
           const item = lumine.workspace.getActivePaneItem();
           expect(item.getFileName && item.getFileName()).toBe("unix-endings.md");
 
-          lineEndingTile.element.dispatchEvent(new MouseEvent("click", {}));
-          lineEndingModal = lumine.workspace.getModalPanels()[0];
-          lineEndingSelector = lineEndingModal.getItem();
+          await clickTile();
 
           expect(lineEndingModal.isVisible()).toBe(true);
           expect(lineEndingSelector.element.contains(document.activeElement)).toBe(true);
@@ -198,14 +261,12 @@ describe("line ending selector", () => {
       });
 
       describe("when the text editor does not have focus", () => {
-        it("opens the line ending selector modal for the active text editor", () => {
+        it("opens the line ending selector modal for the active text editor", async () => {
           lumine.workspace.getLeftDock().activate();
           const item = lumine.workspace.getActivePaneItem();
           expect(item instanceof TextEditor).toBe(false);
 
-          lineEndingTile.element.dispatchEvent(new MouseEvent("click", {}));
-          lineEndingModal = lumine.workspace.getModalPanels()[0];
-          lineEndingSelector = lineEndingModal.getItem();
+          await clickTile();
 
           expect(lineEndingModal.isVisible()).toBe(true);
           expect(lineEndingSelector.element.contains(document.activeElement)).toBe(true);
@@ -217,9 +278,7 @@ describe("line ending selector", () => {
 
       describe("when selecting a different line ending for the file", () => {
         it("changes the line endings in the buffer", async () => {
-          lineEndingTile.element.dispatchEvent(new MouseEvent("click", {}));
-          lineEndingModal = lumine.workspace.getModalPanels()[0];
-          lineEndingSelector = lineEndingModal.getItem();
+          await clickTile();
 
           const lineEndingChangedPromise = new Promise((resolve) => {
             lineEndingTile.onDidChange(() => {
@@ -240,10 +299,8 @@ describe("line ending selector", () => {
       });
 
       describe("when modal is exited", () => {
-        it("leaves the tile selection as-is", () => {
-          lineEndingTile.element.dispatchEvent(new MouseEvent("click", {}));
-          lineEndingModal = lumine.workspace.getModalPanels()[0];
-          lineEndingSelector = lineEndingModal.getItem();
+        it("leaves the tile selection as-is", async () => {
+          await clickTile();
 
           lineEndingSelector.cancelSelection();
           expect(lineEndingTile.element.textContent).toBe("LF");
