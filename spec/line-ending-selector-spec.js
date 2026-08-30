@@ -30,6 +30,21 @@ describe("line ending selector", () => {
       jasmine.attachToDOM(editorElement);
     });
 
+    it("does not register conversion commands on mini editors", () => {
+      const miniEditor = lumine.workspace.buildTextEditor({ mini: true });
+      const miniElement = lumine.views.getView(miniEditor);
+
+      try {
+        const commands = lumine.commands
+          .findCommands({ target: miniElement })
+          .map((command) => command.name);
+        expect(commands).not.toContain("line-ending-selector:convert-to-LF");
+        expect(commands).not.toContain("line-ending-selector:convert-to-CRLF");
+      } finally {
+        miniEditor.destroy();
+      }
+    });
+
     describe('When "line-ending-selector:convert-to-LF" is run', () => {
       it("converts the file to LF line endings", () => {
         editorElement.focus();
