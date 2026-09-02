@@ -53,7 +53,7 @@ describe("line ending selector", () => {
       });
     });
 
-    describe('When "line-ending-selector:convert-to-LF" is run', () => {
+    describe('When "line-ending-selector:convert-to-CRLF" is run', () => {
       it("converts the file to CRLF line endings", () => {
         editorElement.focus();
         lumine.commands.dispatch(document.activeElement, "line-ending-selector:convert-to-CRLF");
