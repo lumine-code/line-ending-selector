@@ -305,7 +305,7 @@ describe("line ending selector", () => {
             });
           });
 
-          lineEndingSelector.refs.queryEditor.setText("CR");
+          lineEndingSelector.getQueryEditor().setText("CR");
           lineEndingSelector.confirmSelection();
           expect(lineEndingModal.isVisible()).toBe(false);
 
