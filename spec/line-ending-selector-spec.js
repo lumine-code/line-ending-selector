@@ -69,31 +69,31 @@ describe("line ending selector", () => {
         );
         await conditionPromise(() => lumine.workspace.getModalPanels().length > 0);
         const view = lumine.workspace.getModalPanels()[0].getItem();
-        await conditionPromise(() => view.element.querySelector("li"));
+        await conditionPromise(() => view.getElement().querySelector("li"));
         return view;
       }
 
       function rowNames(view) {
-        return Array.from(view.element.querySelectorAll("li"), (li) => li.dataset.lineEnding);
+        return Array.from(view.getElement().querySelectorAll("li"), (li) => li.dataset.lineEnding);
       }
 
       it("offers Mixed, ticked and last, when the file uses both", async () => {
         const view = await showSelector();
 
         expect(rowNames(view)).toEqual(["LF", "CRLF", "Mixed"]);
-        expect(view.element.querySelector("li.active").dataset.lineEnding).toBe("Mixed");
+        expect(view.getElement().querySelector("li.active").dataset.lineEnding).toBe("Mixed");
       });
 
       it("refuses to apply Mixed and says why, without closing", async () => {
         const view = await showSelector();
         const before = editor.getText();
 
-        view.selectIndex(rowNames(view).indexOf("Mixed"));
-        view.confirmSelection();
+        await view.selectIndex(rowNames(view).indexOf("Mixed"));
+        await view.confirmSelection();
 
         expect(editor.getText()).toBe(before);
         expect(view.isVisible()).toBe(true);
-        expect(view.props.status.message).toContain("Pick LF or CRLF");
+        expect(view.getStatus().message).toContain("Pick LF or CRLF");
       });
 
       it("offers only the two real endings when the file agrees with itself, ticking the one it uses", async () => {
@@ -101,14 +101,14 @@ describe("line ending selector", () => {
         const view = await showSelector();
 
         expect(rowNames(view)).toEqual(["LF", "CRLF"]);
-        expect(view.element.querySelector("li.active").dataset.lineEnding).toBe("LF");
+        expect(view.getElement().querySelector("li.active").dataset.lineEnding).toBe("LF");
       });
 
       it("applies a real ending and closes", async () => {
         const view = await showSelector();
 
-        view.selectIndex(rowNames(view).indexOf("CRLF"));
-        view.confirmSelection();
+        await view.selectIndex(rowNames(view).indexOf("CRLF"));
+        await view.confirmSelection();
 
         expect(editor.getText()).toBe("Hello\r\nGoodbye\r\nMixed\r\n");
         expect(view.isVisible()).toBe(false);
@@ -246,7 +246,7 @@ describe("line ending selector", () => {
         await conditionPromise(() => lumine.workspace.getModalPanels().length > 0);
         lineEndingModal = lumine.workspace.getModalPanels()[0];
         lineEndingSelector = lineEndingModal.getItem();
-        await conditionPromise(() => lineEndingSelector.element.querySelector("li"));
+        await conditionPromise(() => lineEndingSelector.getElement().querySelector("li"));
       }
 
       beforeEach(async () => {
@@ -268,8 +268,8 @@ describe("line ending selector", () => {
           await clickTile();
 
           expect(lineEndingModal.isVisible()).toBe(true);
-          expect(lineEndingSelector.element.contains(document.activeElement)).toBe(true);
-          let listItems = lineEndingSelector.element.querySelectorAll("li");
+          expect(lineEndingSelector.getElement().contains(document.activeElement)).toBe(true);
+          let listItems = lineEndingSelector.getElement().querySelectorAll("li");
           expect(listItems[0].textContent).toBe("LF");
           expect(listItems[1].textContent).toBe("CRLF");
         });
@@ -284,8 +284,8 @@ describe("line ending selector", () => {
           await clickTile();
 
           expect(lineEndingModal.isVisible()).toBe(true);
-          expect(lineEndingSelector.element.contains(document.activeElement)).toBe(true);
-          let listItems = lineEndingSelector.element.querySelectorAll("li");
+          expect(lineEndingSelector.getElement().contains(document.activeElement)).toBe(true);
+          let listItems = lineEndingSelector.getElement().querySelectorAll("li");
           expect(listItems[0].textContent).toBe("LF");
           expect(listItems[1].textContent).toBe("CRLF");
         });
@@ -306,7 +306,7 @@ describe("line ending selector", () => {
           });
 
           lineEndingSelector.getQueryEditor().setText("CR");
-          lineEndingSelector.confirmSelection();
+          await lineEndingSelector.confirmSelection();
           expect(lineEndingModal.isVisible()).toBe(false);
 
           await lineEndingChangedPromise;
