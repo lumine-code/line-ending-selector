@@ -92,7 +92,7 @@ describe("line ending selector", () => {
         await view.confirmSelection();
 
         expect(editor.getText()).toBe(before);
-        expect(view.isVisible()).toBe(true);
+        expect(lumine.workspace.getModalPanels()[0].isVisible()).toBe(true);
         expect(view.getStatus().message).toContain("Pick LF or CRLF");
       });
 
@@ -111,7 +111,7 @@ describe("line ending selector", () => {
         await view.confirmSelection();
 
         expect(editor.getText()).toBe("Hello\r\nGoodbye\r\nMixed\r\n");
-        expect(view.isVisible()).toBe(false);
+        expect(lumine.workspace.getModalPanels()[0].isVisible()).toBe(false);
       });
     });
   });
@@ -317,7 +317,7 @@ describe("line ending selector", () => {
         it("leaves the tile selection as-is", async () => {
           await clickTile();
 
-          lineEndingSelector.cancelSelection();
+          lineEndingModal.hide();
           expect(lineEndingTile.element.textContent).toBe("LF");
         });
       });
