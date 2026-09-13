@@ -1,5 +1,6 @@
 const helpers = require("../lib/helpers");
-const { TextEditor } = require("lumine");
+const { Selector } = require("../lib/selector");
+const { Emitter, TextEditor } = require("lumine");
 const path = require("path");
 
 describe("line ending selector", () => {
@@ -61,6 +62,62 @@ describe("line ending selector", () => {
       });
     });
 
+    it("converts the active file editor when dispatched from an embedded editor", () => {
+      const cellText = editor.getText();
+      const fileEditor = lumine.workspace.buildTextEditor();
+      fileEditor.setLineEnding = jasmine.createSpy("setLineEnding");
+      spyOn(lumine.workspace, "getActiveFileTextEditor").and.returnValue(fileEditor);
+
+      lumine.commands.dispatch(editorElement, "line-ending-selector:convert-to-CRLF");
+
+      expect(fileEditor.setLineEnding).toHaveBeenCalledWith("\r\n");
+      expect(editor.getText()).toBe(cellText);
+      fileEditor.destroy();
+    });
+
+    it("converts a rich view's file when its dormant editor is targeted in command mode", async () => {
+      const pane = lumine.workspace.getCenter().getActivePane();
+      const fileEditor = lumine.workspace.buildTextEditor();
+      const cellEditor = lumine.workspace.buildTextEditor();
+      const cellElement = lumine.views.getView(cellEditor);
+      const host = document.createElement("div");
+      const cellText = "Cell\r\nsource\r\n";
+      cellEditor.setText(cellText);
+      fileEditor.setLineEnding = jasmine.createSpy("setLineEnding");
+      host.getTitle = () => "Rich file";
+      host.getFileTextEditor = () => fileEditor;
+      host.getActiveEmbeddedTextEditor = () => null;
+      host.onDidChangeActiveTextEditors = () => ({ dispose() {} });
+      host.appendChild(cellElement);
+      pane.activateItem(host);
+
+      try {
+        expect(lumine.workspace.getActiveEmbeddedTextEditor()).toBeUndefined();
+
+        lumine.commands.dispatch(cellElement, "line-ending-selector:convert-to-LF");
+
+        expect(fileEditor.setLineEnding).toHaveBeenCalledWith("\n");
+        expect(cellEditor.getText()).toBe(cellText);
+      } finally {
+        await pane.destroyItem(host, true);
+        cellEditor.destroy();
+        fileEditor.destroy();
+      }
+    });
+
+    it("retains the dispatch target when it is not the active embedded editor", () => {
+      const activeEditor = lumine.workspace.buildTextEditor();
+      activeEditor.setText("Active\n");
+      spyOn(lumine.workspace, "getActiveEmbeddedTextEditor").and.returnValue(activeEditor);
+      spyOn(lumine.workspace, "getActiveFileTextEditor").and.returnValue(activeEditor);
+
+      lumine.commands.dispatch(editorElement, "line-ending-selector:convert-to-LF");
+
+      expect(editor.getText()).toBe("Hello\nGoodbye\nMixed\n");
+      expect(activeEditor.getText()).toBe("Active\n");
+      activeEditor.destroy();
+    });
+
     describe('When "line-ending-selector:show" is run', () => {
       async function showSelector() {
         lumine.commands.dispatch(
@@ -112,6 +169,40 @@ describe("line ending selector", () => {
 
         expect(editor.getText()).toBe("Hello\r\nGoodbye\r\nMixed\r\n");
         expect(lumine.workspace.getModalPanels()[0].isVisible()).toBe(false);
+      });
+
+      it("applies an asynchronous file protocol to the editor captured on open", async () => {
+        const fileEditor = lumine.workspace.buildTextEditor();
+        fileEditor.getLineEndings = () => Promise.resolve(new Set(["\n"]));
+        fileEditor.setLineEnding = jasmine.createSpy("setLineEnding");
+        await lumine.workspace.open(fileEditor);
+
+        const view = await showSelector();
+        const otherEditor = await lumine.workspace.open("");
+        otherEditor.setLineEnding = jasmine.createSpy("otherSetLineEnding");
+        await view.selectIndex(rowNames(view).indexOf("CRLF"));
+        await view.confirmSelection();
+
+        expect(fileEditor.setLineEnding).toHaveBeenCalledWith("\r\n");
+        expect(otherEditor.setLineEnding).not.toHaveBeenCalled();
+      });
+
+      it("forgets its captured editor when cancelled", async () => {
+        const selector = new Selector([
+          { name: "LF", value: "\n" },
+          { name: "CRLF", value: "\r\n" },
+        ]);
+
+        try {
+          await selector.show(editor, new Set(["\n"]));
+          expect(selector.editor).toBe(editor);
+
+          selector.lineEndingListHost.cancel();
+
+          expect(selector.editor).toBeNull();
+        } finally {
+          selector.dispose();
+        }
       });
     });
   });
@@ -415,6 +506,77 @@ describe("line ending selector", () => {
         await timeoutPromise(100);
 
         expect(tileUpdateCount).toBe(3);
+      });
+
+      it("rescans when the removed text starts with a line ending", async () => {
+        const mixedEditor = await lumine.workspace.open(
+          path.join(__dirname, "fixtures", "mixed-endings.md"),
+        );
+        await conditionPromise(() => lineEndingTile.element.textContent === "Mixed");
+
+        mixedEditor.setTextInBufferRange(
+          [
+            [2, Infinity],
+            [3, 0],
+          ],
+          "\r\n",
+          { normalizeLineEndings: false },
+        );
+        await conditionPromise(() => lineEndingTile.element.textContent === "CRLF");
+
+        expect(mixedEditor.getText()).toBe("Hello\r\nGoodbye\r\nMixed\r\n");
+      });
+    });
+
+    describe("when the file editor owns its line-ending protocol", () => {
+      it("uses its async value and dedicated change event instead of its buffer", async () => {
+        const emitter = new Emitter();
+        const fileEditor = lumine.workspace.buildTextEditor();
+        let lineEndings = new Set(["\n"]);
+        fileEditor.getLineEndings = jasmine
+          .createSpy("getLineEndings")
+          .and.callFake(() => Promise.resolve(lineEndings));
+        fileEditor.onDidChangeLineEndings = jasmine
+          .createSpy("onDidChangeLineEndings")
+          .and.callFake((callback) => emitter.on("did-change", callback));
+
+        await lumine.workspace.open(fileEditor);
+        await conditionPromise(() => lineEndingTile.element.textContent === "LF");
+
+        expect(fileEditor.getLineEndings).toHaveBeenCalled();
+        expect(fileEditor.onDidChangeLineEndings).toHaveBeenCalled();
+
+        lineEndings = new Set(["\r\n"]);
+        emitter.emit("did-change", lineEndings);
+        await conditionPromise(() => lineEndingTile.element.textContent === "CRLF");
+
+        expect(fileEditor.getBuffer().getText()).toBe("");
+        emitter.dispose();
+      });
+
+      it("ignores an older asynchronous value that resolves after a newer one", async () => {
+        const emitter = new Emitter();
+        const requests = [];
+        const fileEditor = lumine.workspace.buildTextEditor();
+        fileEditor.getLineEndings = () =>
+          new Promise((resolve) => {
+            requests.push(resolve);
+          });
+        fileEditor.onDidChangeLineEndings = (callback) => emitter.on("did-change", callback);
+
+        await lumine.workspace.open(fileEditor);
+        await conditionPromise(() => requests.length === 1);
+
+        emitter.emit("did-change");
+        await conditionPromise(() => requests.length === 2);
+        requests[1](new Set(["\r\n"]));
+        await conditionPromise(() => lineEndingTile.element.textContent === "CRLF");
+
+        requests[0](new Set(["\n"]));
+        await timeoutPromise(20);
+
+        expect(lineEndingTile.element.textContent).toBe("CRLF");
+        emitter.dispose();
       });
     });
   });

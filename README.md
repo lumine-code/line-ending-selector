@@ -9,6 +9,7 @@ Show and change the line ending used by the current editor.
 - **Marks what the file is**: ticks the current line ending, and lists `Mixed` as a read-only row when the file uses both.
 - **Conversion commands**: convert the active file to `LF` or `CRLF`.
 - **Default line ending**: choose the line ending applied to newly created files.
+- **Format-aware files**: richer file views can report and convert the serialized file's line endings instead of an embedded editor's buffer.
 
 ## Installation
 
@@ -25,6 +26,8 @@ Commands available in `lumine-text-editor`:
 ## Services
 
 - `status-bar`: consumed to show the current line ending in the status bar.
+
+File editors may implement `getLineEndings()` (returning a `Set` or `Promise<Set>`), `setLineEnding(lineEnding)`, and `onDidChangeLineEndings(callback)`. The selector prefers that protocol and otherwise reads and rewrites the editor's buffer.
 
 ## Contributing
 
