@@ -20,8 +20,8 @@ To install `line-ending-selector` search for it in the Install pane of the Lumin
 Commands available in `lumine-text-editor`:
 
 - `line-ending-selector:show`: open the line ending picker,
-- `line-ending-selector:convert-to-LF`: convert the file to `LF` line endings,
-- `line-ending-selector:convert-to-CRLF`: convert the file to `CRLF` line endings.
+- `line-ending-selector:convert-to-lf`: convert the file to `LF` line endings,
+- `line-ending-selector:convert-to-crlf`: convert the file to `CRLF` line endings.
 
 ## Services
 

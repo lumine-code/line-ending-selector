@@ -1,10 +1,8 @@
-const helpers = require("../lib/helpers");
-const { Selector } = require("../lib/selector");
 const { Emitter, TextEditor } = require("lumine");
 const path = require("path");
 
 describe("line ending selector", () => {
-  let lineEndingTile;
+  let helpers, lineEndingTile, Selector;
 
   beforeEach(async () => {
     jasmine.useRealClock();
@@ -12,6 +10,8 @@ describe("line ending selector", () => {
     await lumine.packages.activatePackage("status-bar");
 
     await lumine.packages.activatePackage("line-ending-selector");
+    helpers = require("../lib/helpers");
+    ({ Selector } = require("../lib/selector"));
 
     await timeoutPromise(1);
 
@@ -19,6 +19,19 @@ describe("line ending selector", () => {
     lineEndingTile = statusBar.getRightTiles()[0].getItem();
     expect(lineEndingTile.element.className).toMatch(/line-ending-tile/);
     expect(lineEndingTile.element.textContent).toBe("");
+  });
+
+  it("destroys its tile when the status-bar service edge disappears", () => {
+    const tile = { destroy: jasmine.createSpy("destroy") };
+    const mainModule = lumine.packages.getActivePackage("line-ending-selector").mainModule;
+    const registration = mainModule.consumeStatusBar({
+      addRightTile() {
+        return tile;
+      },
+    });
+
+    registration.dispose();
+    expect(tile.destroy).toHaveBeenCalled();
   });
 
   describe("Commands", () => {
@@ -39,25 +52,25 @@ describe("line ending selector", () => {
         const commands = lumine.commands
           .findCommands({ target: miniElement })
           .map((command) => command.name);
-        expect(commands).not.toContain("line-ending-selector:convert-to-LF");
-        expect(commands).not.toContain("line-ending-selector:convert-to-CRLF");
+        expect(commands).not.toContain("line-ending-selector:convert-to-lf");
+        expect(commands).not.toContain("line-ending-selector:convert-to-crlf");
       } finally {
         miniEditor.destroy();
       }
     });
 
-    describe('When "line-ending-selector:convert-to-LF" is run', () => {
+    describe('When "line-ending-selector:convert-to-lf" is run', () => {
       it("converts the file to LF line endings", () => {
         editorElement.focus();
-        lumine.commands.dispatch(document.activeElement, "line-ending-selector:convert-to-LF");
+        lumine.commands.dispatch(document.activeElement, "line-ending-selector:convert-to-lf");
         expect(editor.getText()).toBe("Hello\nGoodbye\nMixed\n");
       });
     });
 
-    describe('When "line-ending-selector:convert-to-CRLF" is run', () => {
+    describe('When "line-ending-selector:convert-to-crlf" is run', () => {
       it("converts the file to CRLF line endings", () => {
         editorElement.focus();
-        lumine.commands.dispatch(document.activeElement, "line-ending-selector:convert-to-CRLF");
+        lumine.commands.dispatch(document.activeElement, "line-ending-selector:convert-to-crlf");
         expect(editor.getText()).toBe("Hello\r\nGoodbye\r\nMixed\r\n");
       });
     });
@@ -68,7 +81,7 @@ describe("line ending selector", () => {
       fileEditor.setLineEnding = jasmine.createSpy("setLineEnding");
       spyOn(lumine.workspace, "getActiveFileTextEditor").and.returnValue(fileEditor);
 
-      lumine.commands.dispatch(editorElement, "line-ending-selector:convert-to-CRLF");
+      lumine.commands.dispatch(editorElement, "line-ending-selector:convert-to-crlf");
 
       expect(fileEditor.setLineEnding).toHaveBeenCalledWith("\r\n");
       expect(editor.getText()).toBe(cellText);
@@ -94,7 +107,7 @@ describe("line ending selector", () => {
       try {
         expect(lumine.workspace.getActiveEmbeddedTextEditor()).toBeUndefined();
 
-        lumine.commands.dispatch(cellElement, "line-ending-selector:convert-to-LF");
+        lumine.commands.dispatch(cellElement, "line-ending-selector:convert-to-lf");
 
         expect(fileEditor.setLineEnding).toHaveBeenCalledWith("\n");
         expect(cellEditor.getText()).toBe(cellText);
@@ -111,7 +124,7 @@ describe("line ending selector", () => {
       spyOn(lumine.workspace, "getActiveEmbeddedTextEditor").and.returnValue(activeEditor);
       spyOn(lumine.workspace, "getActiveFileTextEditor").and.returnValue(activeEditor);
 
-      lumine.commands.dispatch(editorElement, "line-ending-selector:convert-to-LF");
+      lumine.commands.dispatch(editorElement, "line-ending-selector:convert-to-lf");
 
       expect(editor.getText()).toBe("Hello\nGoodbye\nMixed\n");
       expect(activeEditor.getText()).toBe("Active\n");
@@ -209,7 +222,7 @@ describe("line ending selector", () => {
 
   describe("Status bar tile", () => {
     describe("when an empty file is opened", () => {
-      it("uses the default line endings for the platform", async () => {
+      it("uses CRLF on Windows", async () => {
         await new Promise((done) => {
           spyOn(helpers, "getProcessPlatform").and.returnValue("win32");
 
@@ -221,14 +234,15 @@ describe("line ending selector", () => {
               expect(getTooltipText(lineEndingTile.element)).toBe(
                 "File uses CRLF (Windows) line endings",
               );
-
               done();
             });
           });
         });
+      });
 
+      it("uses LF on Unix platforms", async () => {
         await new Promise((done) => {
-          helpers.getProcessPlatform.and.returnValue("darwin");
+          spyOn(helpers, "getProcessPlatform").and.returnValue("darwin");
 
           lumine.workspace.open("").then((editor) => {
             const subscription = lineEndingTile.onDidChange(() => {
@@ -477,7 +491,7 @@ describe("line ending selector", () => {
         expect(getTooltipText(lineEndingTile.element)).toBe("File uses mixed line endings");
 
         await new Promise((done) => {
-          lumine.commands.dispatch(editor.getElement(), "line-ending-selector:convert-to-CRLF");
+          lumine.commands.dispatch(editor.getElement(), "line-ending-selector:convert-to-crlf");
           lineEndingTile.onDidChange(done);
         });
 
@@ -488,7 +502,7 @@ describe("line ending selector", () => {
         );
 
         await new Promise((done) => {
-          lumine.commands.dispatch(editor.getElement(), "line-ending-selector:convert-to-LF");
+          lumine.commands.dispatch(editor.getElement(), "line-ending-selector:convert-to-lf");
           lineEndingTile.onDidChange(done);
         });
 
